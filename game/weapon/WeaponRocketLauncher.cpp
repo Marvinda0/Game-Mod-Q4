@@ -60,6 +60,15 @@ private:
 	stateResult_t		State_Rocket_Reload		( const stateParms_t& parms );
 	
 	stateResult_t		Frame_AddToClip			( const stateParms_t& parms );
+
+	// mod it 266
+	int fireHeldTime; // duration the fire button is held
+	int minChargeTime; // minimum time to start charging
+	int maxChargeTime; // maximum charge time
+	int maxRockets; // maximum number of rockets to fire
+	int rocketsToFire;  // Total number of rockets to fire
+	int rocketsFired;   // Number of rockets already fired
+
 	
 	CLASS_STATES_PROTOTYPE ( rvWeaponRocketLauncher );
 };
@@ -96,6 +105,14 @@ void rvWeaponRocketLauncher::Spawn ( void ) {
 
 	idleEmpty = false;
 	
+	// mod it 266
+	fireHeldTime = 0;
+	minChargeTime = SEC2MS(0.5f); 
+	maxChargeTime = SEC2MS(5.0f); 
+	maxRockets = 8; 
+	rocketsToFire = 0; 
+	rocketsFired = 0;  
+
 	spawnArgs.GetFloat ( "lockRange", "0", guideRange );
 
 	spawnArgs.GetFloat ( "lockSlowdown", ".25", f );
@@ -442,24 +459,63 @@ stateResult_t rvWeaponRocketLauncher::State_Fire ( const stateParms_t& parms ) {
 	enum {
 		STAGE_INIT,
 		STAGE_WAIT,
+		STAGE_FIRE_MULTIPLE,
 	};	
+
+	int heldTime = 0;
+	int ammoAvailable = 0;
 	switch ( parms.stage ) {
 		case STAGE_INIT:
-			nextAttackTime = gameLocal.time + (fireRate * owner->PowerUpModifier ( PMOD_FIRERATE ));		
-			Attack ( false, 1, spread, 0, 1.0f );
-			PlayAnim ( ANIMCHANNEL_LEGS, "fire", parms.blendFrames );	
-			return SRESULT_STAGE ( STAGE_WAIT );
+			fireHeldTime = gameLocal.time;
+			rocketsFired = 0;
+			gameLocal.Printf("Fire button pressed: %d\n", fireHeldTime); // DEBUG
+			PlayAnim (ANIMCHANNEL_LEGS, "fire_start", parms.blendFrames);
+			return SRESULT_STAGE(STAGE_WAIT);
+			
 	
-		case STAGE_WAIT:			
-			if ( wsfl.attack && gameLocal.time >= nextAttackTime && ( gameLocal.isClient || AmmoInClip ( ) ) && !wsfl.lowerWeapon ) {
-				SetState ( "Fire", 0 );
-				return SRESULT_DONE;
+		case STAGE_WAIT:		
+
+			heldTime = gameLocal.time - fireHeldTime;
+			gameLocal.Printf("Held time: %d ms\n", heldTime); // DEBUG
+
+			if (wsfl.attack) {
+				return SRESULT_WAIT;
 			}
-			if ( gameLocal.time > nextAttackTime && AnimDone ( ANIMCHANNEL_LEGS, 4 ) ) {
-				SetState ( "Idle", 4 );
-				return SRESULT_DONE;
+
+			rocketsToFire = 1;
+			if (heldTime >= minChargeTime) {
+				float chargeRatio = idMath::ClampFloat(
+					0.0f,
+					1.0f,
+					float(heldTime - minChargeTime) / float(maxChargeTime - minChargeTime)
+				);
+				rocketsToFire = 1 + int(chargeRatio * (maxRockets - 1));
 			}
-			return SRESULT_WAIT;
+			gameLocal.Printf("Number of rockets: %d\n", rocketsToFire); // DEBUG
+			ammoAvailable = AmmoInClip();
+			if (rocketsToFire > ammoAvailable) {
+				rocketsToFire = ammoAvailable;
+			}
+			gameLocal.Printf("Number of rockets2: %d\n", rocketsToFire); // DEBUG
+
+			return SRESULT_STAGE(STAGE_FIRE_MULTIPLE);
+
+		case STAGE_FIRE_MULTIPLE:
+			gameLocal.Printf("Entering STAGE_FIRE_MULTIPLE | rocketsFired: %d/%d\n", rocketsFired, rocketsToFire);
+			if (rocketsFired < rocketsToFire) {
+				gameLocal.Printf("Firing rocket %d/%d\n", rocketsFired + 1, rocketsToFire);
+				Attack(false, 1, spread, 0, 1.0f);
+				rocketsFired++;
+
+				return SRESULT_DELAY(100); // Wait 100ms before firing next rocket
+			}
+
+			gameLocal.Printf("All rockets fired. Returning to Idle.\n");
+			nextAttackTime = gameLocal.time + (fireRate * owner->PowerUpModifier(PMOD_FIRERATE) * rocketsToFire);
+
+			
+			SetState("Idle", 4);
+			return SRESULT_DONE;
 	}
 	return SRESULT_ERROR;
 }
