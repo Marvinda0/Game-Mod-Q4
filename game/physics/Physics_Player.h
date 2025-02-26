@@ -148,6 +148,8 @@ private:
 	trace_t					groundTrace;
 	const idMaterial *		groundMaterial;
 
+	int jumpsLeft = 2; //MODED, added for double jump logic
+
 	// ladder movement
 	bool					ladder;
 	idVec3					ladderNormal;

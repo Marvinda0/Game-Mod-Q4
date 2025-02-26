@@ -141,6 +141,8 @@ private:
 	trace_t					groundTrace;
 	const idMaterial *		groundMaterial;
 
+	int jumpsLeft = 2;  //#MOD Added for double jum
+
 	// ladder movement
 	bool					ladder;
 	idVec3					ladderNormal;

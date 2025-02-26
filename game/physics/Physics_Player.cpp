@@ -664,6 +664,13 @@ void idPhysics_Player::AirMove( void ) {
 	wishspeed = wishdir.Normalize();
 	wishspeed *= scale;
 
+	//#MOD: Allow jumping while in mid-air (double jump)
+	if (jumpsLeft > 0 && command.upmove > 10) {
+		if (idPhysics_Player::CheckJump()) {
+			gameLocal.Printf("Double Jump Activated!\n");
+		}
+	}
+
 	// not on ground, so little effect on velocity
 	idPhysics_Player::Accelerate( wishdir, wishspeed, Pm_AirAccelerate() );
 
@@ -1020,6 +1027,9 @@ void idPhysics_Player::CheckGround( bool checkStuck ) {
 	bool hadGroundContacts;
 
 	hadGroundContacts = HasGroundContacts();
+	if (hadGroundContacts) {
+		jumpsLeft = 2;  // Reset jumps when the player lands
+	}
 
 	// set the clip model origin before getting the contacts
 	clipModel->SetPosition( current.origin, clipModel->GetAxis() );
@@ -1108,6 +1118,11 @@ void idPhysics_Player::CheckGround( bool checkStuck ) {
 		current.movementFlags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND );
 		current.movementTime = 0;
 	}
+
+	if (hadGroundContacts) {
+		jumpsLeft = 2;  // Reset jump count when touching the ground ##MOD
+	}
+
 
 	// if the player didn't have ground contacts the previous frame
 	if ( !hadGroundContacts ) {
@@ -1279,8 +1294,8 @@ bool idPhysics_Player::CheckJump( void ) {
 		return false;
 	}
 
-	// must wait for jump to be released
-	if ( current.movementFlags & PMF_JUMP_HELD ) {
+	//#MOD: Allow double jump by skipping PMF_JUMP_HELD check in the air
+	if ((current.movementFlags & PMF_JUMP_HELD) && jumpsLeft == 2) {
 		return false;
 	}
 
@@ -1289,6 +1304,11 @@ bool idPhysics_Player::CheckJump( void ) {
 		return false;
 	}
 
+	// Check if we have jumps left ##MOD
+	if (jumpsLeft <= 0) {
+		return false;  // No jumps remaining
+	}
+	gameLocal.Printf("Jump Activated! Jumps Left BEFORE: %d\n", jumpsLeft);
 	groundPlane = false;		// jumping away
 	walking = false;
 	current.movementFlags |= PMF_JUMP_HELD | PMF_JUMPED;
@@ -1297,10 +1317,14 @@ bool idPhysics_Player::CheckJump( void ) {
 	addVelocity *= idMath::Sqrt( addVelocity.Normalize() );
 	current.velocity += addVelocity;
 
+	jumpsLeft--;
+
+	gameLocal.Printf("Jump Applied! Jumps Left AFTER: %d\n", jumpsLeft);
 // RAVEN BEGIN
 // bdube: crouch slide, nick maggoire is awesome
 	current.crouchSlideTime = 0;
 // RAVEN END
+
 
 	return true;
 }

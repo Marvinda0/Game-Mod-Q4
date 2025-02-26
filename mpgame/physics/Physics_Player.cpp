@@ -1263,43 +1263,57 @@ void idPhysics_Player::CheckLadder( void ) {
 idPhysics_Player::CheckJump
 =============
 */
-bool idPhysics_Player::CheckJump( void ) {
+bool idPhysics_Player::CheckJump(void) {
 	idVec3 addVelocity;
 
 	// CheckJump only called from WalkMove, therefore with walking == true
 	// in MP game we always have groundPlane == walking
 	// (this mostly matters to velocity clipping against ground when the jump is ok'ed)
-	assert( groundPlane );
+	// assert( groundPlane ); // //#MOD Removed: We need to allow jumps mid-air
 
-	if ( command.upmove < 10 ) {
+	if (command.upmove < 10) {
 		// not holding jump
 		return false;
 	}
 
 	// must wait for jump to be released
-	if ( current.movementFlags & PMF_JUMP_HELD ) {
+	if ((current.movementFlags & PMF_JUMP_HELD) && jumpsLeft == 2) {  //#MOD: Allow second jump without releasing button
 		return false;
 	}
 
 	// don't jump if we can't stand up
-	if ( current.movementFlags & PMF_DUCKED ) {
+	if (current.movementFlags & PMF_DUCKED) {
 		return false;
 	}
 
+	// //#MOD: Allow double jump
+	if (jumpsLeft <= 0) {
+		gameLocal.Printf("Jump failed: No jumps left!\n");
+		return false;
+	}
+
+	gameLocal.Printf("Jump Activated! Jumps Left BEFORE: %d\n", jumpsLeft);  //#MOD Debugging
+
 	// start by setting up the normal ground slide velocity
 	// this will make sure that when we add the jump velocity we actually get off of the ground plane
-	if ( current.velocity * groundTrace.c.normal < 0.0f ) {
-		current.velocity = AdjustVertically( groundTrace.c.normal, current.velocity );
+	if (current.velocity * groundTrace.c.normal < 0.0f) {
+		current.velocity = AdjustVertically(groundTrace.c.normal, current.velocity);
 	}
-	
+
+	// Apply jump force
 	addVelocity = 2.0f * maxJumpHeight * -gravityVector;
-	addVelocity *= idMath::Sqrt( addVelocity.Normalize() );
+	addVelocity *= idMath::Sqrt(addVelocity.Normalize());
 	current.velocity += addVelocity;
 
-	groundPlane = false;		// jumping away
+	groundPlane = false;    // jumping away
 	walking = false;
 	groundEntityPtr = NULL;
 	current.movementFlags |= PMF_JUMP_HELD | PMF_JUMPED;
+
+	// //#MOD: Reduce jumps left for double jump
+	jumpsLeft--;
+
+	gameLocal.Printf("Jump Applied! Jumps Left AFTER: %d\n", jumpsLeft);  //#MOD Debugging
 
 	// crouch slide
 	current.crouchSlideTime = 0;
