@@ -1,4 +1,5 @@
 About This Mod
+
 This is a gameplay overhaul for Quake 4, introducing new movement mechanics and combat changes to create a faster, more agile experience. So far, movement speed has been significantly increased, and players can now perform a double jump by pressing the jump key (SPACE) twice.
 
 More features are in development, aiming to bring a ninja-inspired playstyle with enhanced mobility, stealth, and enemy encounters.
