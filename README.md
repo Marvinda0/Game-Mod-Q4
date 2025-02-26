@@ -16,7 +16,7 @@ Double Jump: Press SPACE twice to jump again while in the air. This allows for m
 Upcoming Features:
 
 Weapon Overhaul: Replace standard weapons with ninja-inspired weaponry.
-Expanded Movement System: Introduce 5 unique movement abilities.
+Expanded Movement System: Introduce 3 more unique movement abilities.
 Stealth Mechanics: Implement 5 mechanics focused on stealth-based gameplay.
 Wave-Based Enemy System: Implement an AI-driven enemy spawning system.
 Player Upgrade System: Enable progression for movement and attack capabilities.
