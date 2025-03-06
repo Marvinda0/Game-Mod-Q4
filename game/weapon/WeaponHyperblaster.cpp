@@ -33,6 +33,9 @@ private:
 	stateResult_t		State_Idle		( const stateParms_t& parms );
 	stateResult_t		State_Fire		( const stateParms_t& parms );
 	stateResult_t		State_Reload	( const stateParms_t& parms );
+
+	int shotsFired;   // Tracks number of shots fired per button press
+	int shotsToFire;  // Number of shots fired per button hold (default: 2)
 	
 	CLASS_STATES_PROTOTYPE ( rvWeaponHyperblaster );
 };
@@ -220,37 +223,62 @@ stateResult_t rvWeaponHyperblaster::State_Idle( const stateParms_t& parms ) {
 rvWeaponHyperblaster::State_Fire
 ================
 */
-stateResult_t rvWeaponHyperblaster::State_Fire ( const stateParms_t& parms ) {
+stateResult_t rvWeaponHyperblaster::State_Fire(const stateParms_t& parms) {
 	enum {
 		STAGE_INIT,
 		STAGE_WAIT,
-	};	
-	switch ( parms.stage ) {
-		case STAGE_INIT:
-			SpinUp ( );
-			nextAttackTime = gameLocal.time + (fireRate * owner->PowerUpModifier ( PMOD_FIRERATE ));
-			Attack ( false, 1, spread, 0, 1.0f );
-			if ( ClipSize() ) {
-				viewModel->SetShaderParm ( HYPERBLASTER_SPARM_BATTERY, (float)AmmoInClip()/ClipSize() );
-			} else {
-				viewModel->SetShaderParm ( HYPERBLASTER_SPARM_BATTERY, 1.0f );		
-			}
-			PlayAnim ( ANIMCHANNEL_ALL, "fire", 0 );	
-			return SRESULT_STAGE ( STAGE_WAIT );
-	
-		case STAGE_WAIT:		
-			if ( wsfl.attack && gameLocal.time >= nextAttackTime && AmmoInClip() && !wsfl.lowerWeapon ) {
-				SetState ( "Fire", 0 );
-				return SRESULT_DONE;
-			}
-			if ( (!wsfl.attack || !AmmoInClip() || wsfl.lowerWeapon) && AnimDone ( ANIMCHANNEL_ALL, 0 ) ) {
-				SetState ( "Idle", 0 );
-				return SRESULT_DONE;
-			}		
-			return SRESULT_WAIT;
+	};
+
+	switch (parms.stage) {
+	case STAGE_INIT:
+		SpinUp();
+		shotsFired = 0;   // Reset shot count
+		shotsToFire = 2;  // Set the number of shots per press
+
+		// Fire the first shot immediately
+		nextAttackTime = gameLocal.time + (fireRate * owner->PowerUpModifier(PMOD_FIRERATE));
+		Attack(false, 1, spread, 0, 1.0f);
+		shotsFired++;
+
+		if (ClipSize()) {
+			viewModel->SetShaderParm(HYPERBLASTER_SPARM_BATTERY, (float)AmmoInClip() / ClipSize());
+		}
+		else {
+			viewModel->SetShaderParm(HYPERBLASTER_SPARM_BATTERY, 1.0f);
+		}
+
+		PlayAnim(ANIMCHANNEL_ALL, "fire", 0);
+		return SRESULT_STAGE(STAGE_WAIT);
+
+	case STAGE_WAIT:
+		// Fire the second shot if we have not fired twice yet
+		if (shotsFired < shotsToFire && gameLocal.time >= nextAttackTime && AmmoInClip()) {
+			gameLocal.Printf("Hyperblaster firing second shot\n");
+			Attack(false, 1, spread, 0, 1.0f);
+			shotsFired++;
+			nextAttackTime = gameLocal.time + (fireRate * owner->PowerUpModifier(PMOD_FIRERATE));
+
+			return SRESULT_WAIT; // Wait before checking again
+		}
+
+		// If the fire button is still held, restart the firing process
+		if (wsfl.attack && gameLocal.time >= nextAttackTime && AmmoInClip() && !wsfl.lowerWeapon) {
+			SetState("Fire", 0);
+			return SRESULT_DONE;
+		}
+
+		// If button is released or no ammo, go back to idle
+		if ((!wsfl.attack || !AmmoInClip() || wsfl.lowerWeapon) && AnimDone(ANIMCHANNEL_ALL, 0)) {
+			SetState("Idle", 0);
+			return SRESULT_DONE;
+		}
+
+		return SRESULT_WAIT;
 	}
+
 	return SRESULT_ERROR;
 }
+
 
 /*
 ================

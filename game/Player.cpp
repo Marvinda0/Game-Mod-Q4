@@ -8601,7 +8601,15 @@ void idPlayer::PerformImpulse( int impulse ) {
 // RITUAL END
 
 		case IMPULSE_50: {
-			ToggleFlashlight ( );
+			//MOD
+			if (lastDashTime == 0 || gameLocal.time - lastDashTime >= dashCooldown) { // 3-second cooldown check
+				idVec3 dashDirection = viewAngles.ToForward(); // Get forward direction
+				dashDirection.Normalize();
+				physicsObj.SetLinearVelocity(dashDirection * dashDistance); // Apply dash impulse
+
+				lastDashTime = gameLocal.time; // Update cooldown timer
+				//
+			}
 			break;
 		}
 
@@ -8634,6 +8642,7 @@ void idPlayer::PerformImpulse( int impulse ) {
 //RAVEN END
 }
    
+
 /*
 ==============
 idPlayer::HandleESC
@@ -9071,6 +9080,7 @@ void idPlayer::Move( void ) {
 		acc->time = gameLocal.time;
 		acc->dir[2] = 200;
 		acc->dir[0] = acc->dir[1] = 0;
+
 	}
 
 	if ( pfl.onLadder ) {

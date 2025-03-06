@@ -766,6 +766,9 @@ public:
 	void					RemoveProjectile				( void );
 	virtual void			DamageFeedback					( idEntity *victim, idEntity *inflictor, int &damage );
 	void					DirectDamage					( const char *meleeDefName, idEntity *ent );
+	// MOD: Function to apply poison damage over time
+	void					DamageOverTime					(float damagePerSecond, float duration, idEntity* attacker, idEntity* inflictor);
+
 	bool					TestMelee						( void ) const;
 	void					PushWithAF						( void );
 	bool					IsMeleeNeeded					( void );

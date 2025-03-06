@@ -843,11 +843,21 @@ public:
 
 	void					LookAtEntity					( idEntity *ent, float duration );
 
+	//MOD
+	void					ApplyPoisonEffect				(const idDict* damageDef);
+	void					ProcessPoison					();
+
+
 // ----------------------------- Variables ------------------------------------
 
 	int						actionAnimNum;			// Index of animation to use for the upcoming action
 	int						actionTime;				// Time line for actions (time is stopped when an action is running)
 	int						actionSkipTime;			// Time to use if an action is skipped by another
+
+	//MOD
+	bool isPoisoned;
+	int poisonEndTime;
+	const idDict* poisonDamageDef;
 
 	int						flagOverrides;
 

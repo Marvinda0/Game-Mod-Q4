@@ -466,7 +466,6 @@ void idPhysics_Player::Friction( void ) {
 	}
 
 	drop = 0;
-
 	// spectator friction
 // RAVEN BEGIN
 // nmckenzie: allow trying custom frictions
@@ -521,6 +520,44 @@ void idPhysics_Player::Friction( void ) {
 		current.velocity.z = 0.0f;
 	}
 }
+//mod
+void idPhysics_Player::CheckWallStick() {
+	gameLocal.Printf("CheckWallStick called\n");
+
+	if (groundPlane || current.velocity.z > -10.0f || current.velocity.Length() < 10.0f) {
+		gameLocal.Printf("Not in air (or moving too slow), returning\n");
+		return;
+	}
+
+	trace_t trace;
+
+	// Check in multiple directions to detect walls better
+	idVec3 directions[4] = {
+		idVec3(1, 0, 0),  // Right
+		idVec3(-1, 0, 0), // Left
+		idVec3(0, 1, 0),  // Forward
+		idVec3(0, -1, 0)  // Backward
+	};
+
+	for (int i = 0; i < 4; i++) {
+		idVec3 checkEnd = current.origin + directions[i] * 10.0f; // Check slightly further
+		gameLocal.Translation(self, trace, current.origin, checkEnd, clipModel, clipModel->GetAxis(), clipMask, self);
+
+		// If we hit something, stop movement
+		if (trace.fraction < 1.0f && trace.c.normal.z < 0.7f) {
+			gameLocal.Printf("Wall detected! Sticking...\n");
+			current.velocity = idVec3(0, 0, 0);
+			current.movementFlags |= PMF_JUMP_HELD;
+			return; // Stop checking other directions after sticking
+		}
+	}
+}
+
+//
+
+
+
+
 
 /*
 ===================
@@ -651,6 +688,9 @@ void idPhysics_Player::AirMove( void ) {
 	idPhysics_Player::Friction();
 
 	scale = idPhysics_Player::CmdScale( command );
+
+	CheckWallStick(); // Only called while in the air
+
 
 	// project moves down to flat plane
 	viewForward -= (viewForward * gravityNormal) * gravityNormal;

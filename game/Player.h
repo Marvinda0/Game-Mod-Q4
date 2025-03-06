@@ -288,6 +288,12 @@ public:
 
 	bool					alreadyDidTeamAnnouncerSound;
 	bool					noclip;
+
+	bool canDash = true; //MOD
+	int lastDashTime = 0; //MOD
+	const int dashCooldown = 3000; //MOD
+	const float dashDistance = 1000.0f; //MOD
+
 	bool					godmode;
 	int						godmodeDamage;
 	bool					undying;
@@ -442,6 +448,7 @@ public:
 
 	virtual void			Hide( void );
 	virtual void			Show( void );
+
 
 	void					Init( void );
  	void					PrepareForRestart( void );

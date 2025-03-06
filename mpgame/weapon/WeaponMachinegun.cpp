@@ -233,7 +233,16 @@ stateResult_t rvWeaponMachinegun::State_Fire ( const stateParms_t& parms ) {
 			} else {
 				nextAttackTime = gameLocal.time + (fireRate * owner->PowerUpModifier ( PMOD_FIRERATE ));
 				Attack ( false, 1, spread, 0, 1.0f );
+
+				// MOD: Apply poison effect using damage definition
+				const idDict* damageDef = gameLocal.FindEntityDefDict("damage_machinegun", false);
+				if (damageDef) {
+					Hitscan(*damageDef, muzzleOrigin, muzzleAxis, 1, spread, 1.0f); // MOD: Use the modified damage definition
+				}
 			}
+
+			
+
 			PlayAnim ( ANIMCHANNEL_ALL, "fire", 0 );	
 			return SRESULT_STAGE ( STAGE_WAIT );
 	

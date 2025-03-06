@@ -14,7 +14,7 @@ public:
 
 	virtual void		Spawn				( void );
 	virtual void		CleanupWeapon		( void );
-	void				Save				( idSaveGame *savefile ) const;
+	void					Save				( idSaveGame *savefile ) const;
 	void				Restore				( idRestoreGame *savefile );
 	void				PreSave				( void );
 	void				PostSave			( void );
@@ -98,7 +98,7 @@ void rvWeaponGauntlet::Spawn ( void ) {
 	bladeSpinSlow	= spawnArgs.GetAngles ( "blade_spinslow" );
 	bladeAccel		= SEC2MS ( spawnArgs.GetFloat ( "blade_accel", ".25" ) );
 	
-	range			= spawnArgs.GetFloat ( "range", "32" );
+	range			= spawnArgs.GetFloat ( "range", "64" );
 
 	impactMaterial = -1;
 	impactEffect   = NULL;
@@ -162,26 +162,12 @@ rvWeaponGauntlet::PostSave
 void rvWeaponGauntlet::PostSave( void ) {
 }
 
-void rvWeaponGauntlet::PlayLoopSound( int sndType ) {
-	if ( loopSound == sndType ) {
-		return;
+void rvWeaponGauntlet::PlayLoopSound(int sndType) {
+	if (sndType == LOOP_NONE) {
+		StopSound(SND_CHANNEL_WEAPON, false);
 	}
-	const char *loopSoundString = NULL;
-	switch ( sndType ) {
-		case LOOP_NONE:
-		default:
-			loopSoundString = "snd_spin_loop";
-			break;
-		case LOOP_WALL:
-			loopSoundString = "snd_spin_wall";
-			break;
-		case LOOP_FLESH:
-			loopSoundString = "snd_spin_flesh";
-			break;
-	}
-	if ( loopSoundString ) {
-		loopSound = sndType;
-		StartSound( loopSoundString, SND_CHANNEL_WEAPON, 0, false, 0 );
+	else {
+		StartSound("snd_hit", SND_CHANNEL_WEAPON, 0, false, 0); // Play attack sound
 	}
 }
 
@@ -298,7 +284,7 @@ void rvWeaponGauntlet::Attack ( void ) {
 		} else {
 			PlayLoopSound( LOOP_NONE );
 		}
-		nextAttackTime = gameLocal.time + fireRate;
+		nextAttackTime = gameLocal.time + 500;
 	}
 }
 
@@ -468,47 +454,47 @@ stateResult_t rvWeaponGauntlet::State_Fire ( const stateParms_t& parms ) {
 		STAGE_LOOP_WAIT,
 		STAGE_END,
 		STAGE_END_WAIT
-	};	
-	switch ( parms.stage ) {
-		case STAGE_START:	
-			PlayAnim ( ANIMCHANNEL_ALL, "attack_start", parms.blendFrames );
-			StartBlade ( );
-			loopSound = LOOP_NONE;
-			return SRESULT_STAGE(STAGE_START_WAIT);
-		
-		case STAGE_START_WAIT:
-			if ( !wsfl.attack ) {
-				return SRESULT_STAGE ( STAGE_END );
-			}
-			if ( AnimDone ( ANIMCHANNEL_ALL, parms.blendFrames ) ) {
-				return SRESULT_STAGE ( STAGE_LOOP );
-			}
-			return SRESULT_WAIT;
-			
-		case STAGE_LOOP:
-			PlayCycle ( ANIMCHANNEL_ALL, "attack_loop", parms.blendFrames );
-			StartSound( "snd_spin_loop", SND_CHANNEL_WEAPON, 0, false, 0 );
-			return SRESULT_STAGE(STAGE_LOOP_WAIT);
-			
-		case STAGE_LOOP_WAIT:
-			if ( !wsfl.attack || wsfl.lowerWeapon ) {
-				return SRESULT_STAGE ( STAGE_END );
-			}
-			Attack ( );
-			return SRESULT_WAIT;
-		
-		case STAGE_END:
-			PlayAnim ( ANIMCHANNEL_ALL, "attack_end", parms.blendFrames );
-			StopBlade ( );
-			StartSound( "snd_spin_down", SND_CHANNEL_WEAPON, 0, false, 0 );
-			return SRESULT_STAGE ( STAGE_END_WAIT );
-		
-		case STAGE_END_WAIT:
-			if ( wsfl.attack || AnimDone ( ANIMCHANNEL_ALL, parms.blendFrames ) ) {
-				PostState ( "Idle", parms.blendFrames );
-				return SRESULT_DONE;
-			}
-			return SRESULT_WAIT;
-	}			
+	};
+	switch (parms.stage) {
+	case STAGE_START:
+		PlayAnim(ANIMCHANNEL_ALL, "attack_start", parms.blendFrames);
+		StartBlade();
+		loopSound = LOOP_NONE;
+		return SRESULT_STAGE(STAGE_START_WAIT);
+
+	case STAGE_START_WAIT:
+		if (!wsfl.attack) {
+			return SRESULT_STAGE(STAGE_END);
+		}
+		if (AnimDone(ANIMCHANNEL_ALL, parms.blendFrames)) {
+			return SRESULT_STAGE(STAGE_LOOP);
+		}
+		return SRESULT_WAIT;
+
+	case STAGE_LOOP:
+		PlayCycle(ANIMCHANNEL_ALL, "attack_loop", parms.blendFrames);
+		StartSound("snd_spin_loop", SND_CHANNEL_WEAPON, 0, false, 0);
+		return SRESULT_STAGE(STAGE_LOOP_WAIT);
+
+	case STAGE_LOOP_WAIT:
+		if (!wsfl.attack || wsfl.lowerWeapon) {
+			return SRESULT_STAGE(STAGE_END);
+		}
+		Attack();
+		return SRESULT_WAIT;
+
+	case STAGE_END:
+		PlayAnim(ANIMCHANNEL_ALL, "attack_end", parms.blendFrames);
+		StopBlade();
+		StartSound("snd_spin_down", SND_CHANNEL_WEAPON, 0, false, 0);
+		return SRESULT_STAGE(STAGE_END_WAIT);
+
+	case STAGE_END_WAIT:
+		if (wsfl.attack || AnimDone(ANIMCHANNEL_ALL, parms.blendFrames)) {
+			PostState("Idle", parms.blendFrames);
+			return SRESULT_DONE;
+		}
+		return SRESULT_WAIT;
+	}
 	return SRESULT_ERROR;
 }

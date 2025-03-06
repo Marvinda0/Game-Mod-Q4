@@ -69,6 +69,9 @@ public:
 	void					SetPlayerInput( const usercmd_t &cmd, const idAngles &newViewAngles );
 	void					SetKnockBack( const int knockBackTime );
 	void					SetDebugLevel( bool set );
+
+	void					CheckWallStick();//MOD
+
 							// feed back from last physics frame
 	waterLevel_t			GetWaterLevel( void ) const;
 	int						GetWaterType( void ) const;
@@ -163,6 +166,7 @@ private:
 	void					Accelerate( const idVec3 &wishdir, const float wishspeed, const float accel );
 	bool					SlideMove( bool gravity, bool stepUp, bool stepDown, bool push );
 	void					Friction( void );
+
 	void					WaterJumpMove( void );
 	void					WaterMove( void );
 	void					FlyMove( void );

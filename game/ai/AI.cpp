@@ -607,6 +607,10 @@ void idAI::Spawn( void ) {
 	jointHandle_t		joint;
 	idVec3				local_dir;
 
+	isPoisoned = false;
+	poisonEndTime = 0;
+	poisonDamageDef = nullptr;
+
 	// Are all monsters disabled?
 	if ( !g_monsters.GetBool() ) {
 		PostEventMS( &EV_Remove, 0 );
@@ -976,6 +980,15 @@ void idAI::WakeUp ( void ) {
 	ExecScriptFunction( funcs.init, this );
 	
 	OnWakeUp ( );
+}
+
+//MOD
+void idAI::ApplyPoisonEffect(const idDict* damageDef) {
+	if (!isPoisoned) {
+		isPoisoned = true;
+		poisonEndTime = gameLocal.time + damageDef->GetInt("residual_time", "6") * 1000;
+		poisonDamageDef = damageDef;
+	}
 }
 
 /*

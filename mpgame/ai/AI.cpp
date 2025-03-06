@@ -2714,6 +2714,19 @@ void idAI::DirectDamage( const char *meleeDefName, idEntity *ent ) {
 	ent->Damage( this, this, globalKickDir, meleeDefName, damageScale, NULL );
 }
 
+void idAI::DamageOverTime(float damagePerSecond, float duration, idEntity* attacker, idEntity* inflictor) {
+	int numTicks = duration * 10; // Apply damage every 100ms
+	float tickDamage = damagePerSecond / 10.0f; // Spread damage over time
+
+	for (int i = 0; i < numTicks; i++) {
+		gameLocal.PostEventMS(this, &EV_TakeDamage, i * 100, tickDamage, attacker, inflictor);
+	}
+
+	gameLocal.Printf("[POISON] Applied poison to AI: %s | Damage: %.1f/s | Duration: %.1f sec\n", GetName(), damagePerSecond, duration);
+}
+
+
+
 /*
 =====================
 idAI::TestMelee

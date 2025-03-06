@@ -8551,7 +8551,12 @@ void idPlayer::PerformImpulse( int impulse ) {
 // RITUAL END
 
 		case IMPULSE_50: {
-			ToggleFlashlight ( );
+			if (canDash && (gameLocal.time - lastDashTime >= dashCooldown)) {
+				idVec3 dashDirection = viewAngles.ToForward(); // Get forward direction
+				dashDirection.Normalize();
+				physicsObj.SetLinearVelocity(dashDirection * dashDistance); // Apply dash impulse
+				lastDashTime = gameLocal.time;
+				canDash = false;
 			break;
 		}
 
