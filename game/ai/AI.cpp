@@ -982,15 +982,6 @@ void idAI::WakeUp ( void ) {
 	OnWakeUp ( );
 }
 
-//MOD
-void idAI::ApplyPoisonEffect(const idDict* damageDef) {
-	if (!isPoisoned) {
-		isPoisoned = true;
-		poisonEndTime = gameLocal.time + damageDef->GetInt("residual_time", "6") * 1000;
-		poisonDamageDef = damageDef;
-	}
-}
-
 /*
 ===================
 idAI::List_f
@@ -1981,6 +1972,16 @@ idAI::UpdateEnemyPosition
 =====================
 */
 void idAI::UpdateEnemyPosition ( bool forceUpdate ) {
+	// MOD: Prevent AI from remembering the last position of the player
+
+	if (gameLocal.mistStepActive || gameLocal.smokeBombActive) {
+		gameLocal.Printf("DEBUG: AI stopped tracking \n");
+		StopMove(MOVE_STATUS_DONE); // Stop AI from chasing
+		return;
+	}
+
+	
+
 	if( !enemy.ent || (!enemy.fl.visible && !forceUpdate) ) {
 		return;
 	}
@@ -2014,6 +2015,16 @@ void idAI::UpdateEnemy ( void ) {
 	
 	// If we lost our enemy then clear it out to be sure
 	if( !enemy.ent ) {
+		return;
+	}
+
+	// MOD: AI completely forgets player when in stealth
+
+	idPlayer* player = gameLocal.GetLocalPlayer();
+	if (player && (gameLocal.mistStepActive || gameLocal.smokeBombActive)) {
+		gameLocal.Printf("DEBUG: AI  forgot about the player \n");
+		enemy.ent = NULL; // AI forgets the player
+		StopMove(MOVE_STATUS_DONE); // Stop chasing
 		return;
 	}
 
@@ -2129,6 +2140,15 @@ Update whether or not the AI can see its enemy or not and determine how.
 */
 void idAI::UpdateEnemyVisibility ( void ) {
 	enemy.fl.visible = false;
+
+	// MOD: Prevent AI from seeing the player during stealth
+	if (gameLocal.mistStepActive || gameLocal.smokeBombActive) {
+		gameLocal.Printf("DEBUG: AI cannot see the player due to stealth.\n");
+		enemy.fl.visible = false;
+		return;
+	}
+
+
 
 	// No enemy so nothing to see
 	if ( !enemy.ent ) {

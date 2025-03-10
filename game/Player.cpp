@@ -85,6 +85,10 @@ const int	ARENA_POWERUP_MASK = ( 1 << POWERUP_AMMOREGEN ) | ( 1 << POWERUP_GUARD
 //const idEventDef EV_Player_HideDatabaseEntry ( "<hidedatabaseentry>", NULL );
 const idEventDef EV_Player_ZoomIn ( "<zoomin>" );
 const idEventDef EV_Player_ZoomOut ( "<zoomout>" );
+//MOD event for miststep
+const idEventDef EV_DisableMistStep("<disableMistStep>", NULL);
+const idEventDef EV_DisableSmokeBomb("<disableSmokeBomb>", NULL);
+
 
 const idEventDef EV_Player_GetButtons( "getButtons", NULL, 'd' );
 const idEventDef EV_Player_GetMove( "getMove", NULL, 'v' );
@@ -122,6 +126,10 @@ const idEventDef EV_Player_AllowNewObjectives( "<allownewobjectives>" );
 CLASS_DECLARATION( idActor, idPlayer )
 //	EVENT( EV_Player_HideDatabaseEntry,		idPlayer::Event_HideDatabaseEntry )
 	EVENT( EV_Player_ZoomIn,				idPlayer::Event_ZoomIn )
+	//MOD
+	EVENT(EV_DisableMistStep, idPlayer::Event_DisableMistStep)
+	EVENT(EV_DisableSmokeBomb, idPlayer::Event_DisableSmokeBomb)
+	//
 	EVENT( EV_Player_ZoomOut,				idPlayer::Event_ZoomOut )
 	EVENT( EV_Player_GetButtons,			idPlayer::Event_GetButtons )
 	EVENT( EV_Player_GetMove,				idPlayer::Event_GetMove )
@@ -8550,17 +8558,15 @@ void idPlayer::PerformImpulse( int impulse ) {
    			}
    			break;
    		}
-				
+			//MOD
 		case IMPULSE_28: {
- 			if ( gameLocal.isClient || entityNumber == gameLocal.localClientNum ) {
- 				gameLocal.mpGame.CastVote( gameLocal.localClientNum, true );
-   			}
+			gameLocal.smokeBombActive = true;
+			gameLocal.Printf("Smokebom active\n");
+			PostEventSec(&EV_DisableSmokeBomb, 3.0f);
    			break;
    		}
    		case IMPULSE_29: {
- 			if ( gameLocal.isClient || entityNumber == gameLocal.localClientNum ) {
-				gameLocal.mpGame.CastVote( gameLocal.localClientNum, false );
-   			}
+			SummonDragon();
    			break;
    		}
 		case IMPULSE_40: {
@@ -8607,8 +8613,15 @@ void idPlayer::PerformImpulse( int impulse ) {
 				dashDirection.Normalize();
 				physicsObj.SetLinearVelocity(dashDirection * dashDistance); // Apply dash impulse
 
+				cmdSystem->BufferCommandText(CMD_EXEC_NOW, "god");  // Enable invincibility
+				gameLocal.mistStepActive = true;  // Set flag so AI ignores the player
+			
+
 				lastDashTime = gameLocal.time; // Update cooldown timer
-				//
+				
+				// Schedule disabling Mist Step after 0.5s
+				PostEventSec(&EV_DisableMistStep, 3.0f);
+
 			}
 			break;
 		}
@@ -8641,7 +8654,79 @@ void idPlayer::PerformImpulse( int impulse ) {
 #endif
 //RAVEN END
 }
-   
+  //MOD
+//MOD Event handler for miststpe
+void idPlayer::Event_DisableMistStep() {
+	DisableMistStep();
+}
+
+// MOD: Function to disable Mist Step effects
+void idPlayer::DisableMistStep() {
+	cmdSystem->BufferCommandText(CMD_EXEC_NOW, "god");  // Disable invincibility
+	gameLocal.mistStepActive = false;  // Reset flag
+	gameLocal.Printf("Mist Step ended! Player is vulnerable and visible again.\n");
+}
+//MOD
+void idPlayer::Event_DisableSmokeBomb() {
+	DisableSmokeBomb();
+}
+
+// MOD: Function to disable Mist Step effects
+void idPlayer::DisableSmokeBomb() {
+	gameLocal.smokeBombActive = false;  // Reset flag
+	gameLocal.Printf("Smokebomb done\n");
+}
+
+//MOD function to summon dragon
+void idPlayer::SummonDragon() {
+	gameLocal.Printf("Attempting to summon the Dragon (Marine)...\n");
+
+	idVec3 playerPos = GetPhysics()->GetOrigin(); // Get player position
+	idVec3 spawnPos;
+	bool foundValidSpawn = false;
+
+	// Try up to 5 times to find a valid spawn position
+	for (int attempt = 0; attempt < 5; attempt++) {
+		spawnPos = playerPos + idVec3(
+			gameLocal.random.RandomFloat() * 200.0f - 100.0f, // Random X (-100 to 100)
+			gameLocal.random.RandomFloat() * 200.0f - 100.0f, // Random Y (-100 to 100)
+			0.0f  // Keep at ground level
+		);
+
+		trace_t trace;
+		gameLocal.Translation(trace, spawnPos, spawnPos + idVec3(0, 0, 50), NULL, MASK_SOLID);
+
+		if (trace.fraction == 1.0f) { // No collision = valid position
+			foundValidSpawn = true;
+			break;
+		}
+	}
+
+	if (!foundValidSpawn) {
+		gameLocal.Printf("Warning: No valid spawn point found for the Dragon!\n");
+		return;
+	}
+
+	idDict args;
+	args.Set("classname", "char_marine"); // Spawning the marine NPC
+	args.SetVector("origin", spawnPos);
+
+	// Spawn the marine
+	idEntity* dragon;
+	gameLocal.SpawnEntityDef(args, &dragon);
+
+	if (dragon) {
+		gameLocal.Printf("Summoned Dragon (Marine) at: %s\n", dragon->GetPhysics()->GetOrigin().ToString());
+
+		// No need to modify AI or damage—handle in the .def file
+		dragon->PostEventSec(&EV_Remove, 3.0f);  // Auto-despawn after 3 sec
+	}
+	else {
+		gameLocal.Printf("Error: Failed to summon the Dragon!\n");
+	}
+}
+
+//MOD
 
 /*
 ==============

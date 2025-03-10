@@ -235,6 +235,9 @@ stateResult_t rvWeaponMachinegun::State_Fire(const stateParms_t& parms) {
 			fireHeld = true;
 		}
 		else {
+			trace_t tr;
+			idEntity* hitEntity = NULL;
+
 			nextAttackTime = gameLocal.time + (fireRate * owner->PowerUpModifier(PMOD_FIRERATE));
 			Attack(false, 1, spread, 0, 1.0f);
 		}

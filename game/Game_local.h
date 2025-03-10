@@ -442,6 +442,25 @@ public:
 	int filterMod;
 	idList<idStr> modList;
 
+	//MOD
+	/*float nextWaveTime = 0;
+	void InitWaveSystem();
+	void StartWave();
+	void EnemyDefeated();
+	void UpdateHUD();
+	//*/
+	float nextWaveTime;
+	int waveCount;
+
+	bool mistStepActive; //dash
+	bool smokeBombActive;
+
+	// Wave system functions
+	void StartWave();
+	void EnemyDefeated();
+
+
+
 	// ---------------------- Public idGame Interface -------------------
 
 							idGameLocal();

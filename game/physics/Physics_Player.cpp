@@ -522,10 +522,10 @@ void idPhysics_Player::Friction( void ) {
 }
 //mod
 void idPhysics_Player::CheckWallStick() {
-	gameLocal.Printf("CheckWallStick called\n");
+	//gameLocal.Printf("CheckWallStick called\n");
 
 	if (groundPlane || current.velocity.z > -10.0f || current.velocity.Length() < 10.0f) {
-		gameLocal.Printf("Not in air (or moving too slow), returning\n");
+		//gameLocal.Printf("Not in air (or moving too slow), returning\n");
 		return;
 	}
 
@@ -545,7 +545,7 @@ void idPhysics_Player::CheckWallStick() {
 
 		// If we hit something, stop movement
 		if (trace.fraction < 1.0f && trace.c.normal.z < 0.7f) {
-			gameLocal.Printf("Wall detected! Sticking...\n");
+			//gameLocal.Printf("Wall detected! Sticking...\n");
 			current.velocity = idVec3(0, 0, 0);
 			current.movementFlags |= PMF_JUMP_HELD;
 			return; // Stop checking other directions after sticking
@@ -704,10 +704,10 @@ void idPhysics_Player::AirMove( void ) {
 	wishspeed = wishdir.Normalize();
 	wishspeed *= scale;
 
-	//#MOD: Allow jumping while in mid-air (double jump)
+	//MOD: Allow jumping while in mid-air (double jump)
 	if (jumpsLeft > 0 && command.upmove > 10) {
 		if (idPhysics_Player::CheckJump()) {
-			gameLocal.Printf("Double Jump Activated!\n");
+			//gameLocal.Printf("Double Jump Activated!\n");
 		}
 	}
 
@@ -1334,7 +1334,7 @@ bool idPhysics_Player::CheckJump( void ) {
 		return false;
 	}
 
-	//#MOD: Allow double jump by skipping PMF_JUMP_HELD check in the air
+	//MOD: Allow double jump by skipping PMF_JUMP_HELD check in the air
 	if ((current.movementFlags & PMF_JUMP_HELD) && jumpsLeft == 2) {
 		return false;
 	}
@@ -1348,7 +1348,7 @@ bool idPhysics_Player::CheckJump( void ) {
 	if (jumpsLeft <= 0) {
 		return false;  // No jumps remaining
 	}
-	gameLocal.Printf("Jump Activated! Jumps Left BEFORE: %d\n", jumpsLeft);
+	//gameLocal.Printf("Jump Activated! Jumps Left BEFORE: %d\n", jumpsLeft);
 	groundPlane = false;		// jumping away
 	walking = false;
 	current.movementFlags |= PMF_JUMP_HELD | PMF_JUMPED;

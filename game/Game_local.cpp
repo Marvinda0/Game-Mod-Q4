@@ -11,7 +11,14 @@
 #include "ai/AI_Manager.h"
 #include "ai/AAS_tactical.h"
 #include "Game_Log.h"
+
 // RAVEN END
+
+//MOD
+//float nextWaveTime = 0;
+//int waveCount = 0;
+
+
 
 //#define UI_DEBUG	1
 
@@ -244,6 +251,10 @@ idGameLocal::Clear
 */
 void idGameLocal::Clear( void ) {
 	int i;
+
+	//MOD
+	mistStepActive = false;
+	smokeBombActive = false;
 
 	serverInfo.Clear();
 	numClients = 0;
@@ -1287,6 +1298,225 @@ void idGameLocal::SetServerInfo( const idDict &_serverInfo ) {
 	}
 }
 
+//MOD
+
+int currentWave = 0;
+bool waveInProgress = false;
+idList<idEntity*> spawners;
+/*
+void idGameLocal::InitWaveSystem() {
+	gameLocal.Printf("==== Wave System: InitWaveSystem() STARTED ====\n");
+
+	// Print map name before checking it
+	gameLocal.Printf("Wave System: Current map name: %s\n", mapFileName);
+
+	// Check if mapFileName is NULL (possible cause of crash)
+	if (!mapFileName) {
+		gameLocal.Printf("Wave System ERROR: mapFileName is NULL! Exiting InitWaveSystem()\n");
+		return;
+	}
+
+	if (idStr::Cmpn(mapFileName, "mp/q4ctf4", 10) != 0) {
+		gameLocal.Printf("Wave System: Not running (wrong map: %s)\n", mapFileName);
+		return;
+	}
+
+	gameLocal.Printf("Wave System: Map check passed, searching for entities...\n");
+
+	// Check if spawnedEntities is empty before looping (possible cause of crash)
+	if (spawnedEntities.IsListEmpty()) {
+		gameLocal.Printf("Wave System: No entities available, skipping wave system init.\n");
+		return;
+	}
+
+	gameLocal.Printf("Wave System: Entities are available. Beginning entity search...\n");
+
+	idEntity* ent;
+	int foundSpawners = 0;
+
+	for (ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next()) {
+		// Print entity name before accessing it
+		gameLocal.Printf("Checking entity...\n");
+
+		if (!ent) {
+			gameLocal.Printf("Warning: NULL entity found, skipping!\n");
+			continue;
+		}
+
+		const char* classname = ent->spawnArgs.GetString("classname");
+		if (!classname) {
+			gameLocal.Printf("Warning: Entity with NULL classname, skipping!\n");
+			continue;
+		}
+
+		gameLocal.Printf("Checking entity of type: %s\n", classname);
+
+		if (idStr::Cmpn(classname, "func_spawner", 12) == 0) {
+			spawners.Append(ent);
+			foundSpawners++;
+			gameLocal.Printf("Added func_spawner at %s\n", ent->GetPhysics()->GetOrigin().ToString());
+		}
+	}
+
+	gameLocal.Printf("Wave System: Found %d spawners in the map!\n", foundSpawners);
+
+	if (spawners.Num() > 0) {
+		StartWave();
+	}
+	else {
+		gameLocal.Printf("Wave System: No enemy spawners found. Check map file!\n");
+	}
+}
+
+
+
+void idGameLocal::StartWave() {
+	if (waveInProgress || spawners.Num() == 0) {
+		gameLocal.Printf("Wave System: StartWave() called but skipped (waveInProgress=%d, spawners=%d)\n", waveInProgress, spawners.Num());
+		return;
+	}
+
+	waveInProgress = true;
+	currentWave++;
+	gameLocal.Printf("Wave System: Starting Wave %d!\n", currentWave);
+
+	for (int i = 0; i < spawners.Num(); i++) {
+		gameLocal.Printf("Activating spawner %d\n", i);
+		spawners[i]->PostEventMS(&EV_Activate, 0);
+	}
+}
+
+
+void idGameLocal::EnemyDefeated() {
+	idEntity* ent;
+	int aliveEnemies = 0;
+	for (ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next()) {
+		const char* classname = ent->spawnArgs.GetString("classname");
+		if (idStr::Cmpn(classname, "monster_", 8) == 0) {
+			aliveEnemies++;
+		}
+	}
+
+	if (aliveEnemies == 0) {
+		waveInProgress = false;
+		nextWaveTime = gameLocal.time + 5.0f;  // Set timer for 5 seconds later
+
+	}
+}
+
+void idGameLocal::UpdateHUD() {
+	gameLocal.Printf("Wave: %d\n", currentWave);
+}
+*/
+
+void idGameLocal::StartWave() {
+	// Prevent spawning new waves if there are still enemies alive
+	idEntity* ent;
+	int aliveEnemies = 0;
+
+	for (ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next()) {
+		if (ent->spawnArgs.GetString("classname", "") && idStr::Cmpn(ent->spawnArgs.GetString("classname", ""), "monster_", 8) == 0) {
+			aliveEnemies++;
+		}
+	}
+
+	if (aliveEnemies > 0) {
+		//gameLocal.Printf("Wave NOT starting, %d enemies still alive.\n", aliveEnemies);
+		return; // Stop new wave if enemies are still alive
+	}
+
+	//gameLocal.Printf("=== Starting Wave %d! ===\n", waveCount);
+
+	int numEnemies = 3;  // Reduce to 3 per wave to control lag
+	idVec3 playerPos = gameLocal.GetLocalPlayer()->GetPhysics()->GetOrigin(); // Get player position
+
+	for (int i = 0; i < numEnemies; i++) {
+		idDict args;
+		args.Set("classname", "monster_grunt"); // Enemy type
+		args.Set("aas", "aas_marine"); // Force AAS file
+
+		// Attempt to find a valid spawn position
+		bool foundValidSpawn = false;
+		idVec3 spawnPos;
+
+		for (int attempt = 0; attempt < 5; attempt++) { // Try 5 times
+			spawnPos = playerPos + idVec3(
+				gameLocal.random.RandomFloat() * 200.0f - 100.0f, // Random X (-100 to 100)
+				gameLocal.random.RandomFloat() * 200.0f - 100.0f, // Random Y (-100 to 100)
+				0.0f  // Keep the same height as the player
+			);
+
+			// Use translation check instead of TracePoint to see if position is inside a solid
+			trace_t trace;
+			gameLocal.Translation(trace, spawnPos, spawnPos + idVec3(0, 0, 50), NULL, MASK_SOLID);
+
+			if (trace.fraction == 1.0f) { // If no collision, position is valid
+				foundValidSpawn = true;
+				break;
+			}
+		}
+
+		if (!foundValidSpawn) {
+			//gameLocal.Printf("Warning: No valid spawn point found for enemy!\n");
+			continue; // Skip this enemy
+		}
+
+		args.SetVector("origin", spawnPos);
+
+		// Spawn the enemy
+		idEntity* enemy;
+		gameLocal.SpawnEntityDef(args, &enemy);
+
+		if (enemy) {
+			//gameLocal.Printf("Spawned enemy at: %s\n", enemy->GetPhysics()->GetOrigin().ToString());
+		}
+		else {
+			//gameLocal.Printf("Error: Failed to spawn enemy!\n");
+		}
+	}
+
+	waveCount++; // Increment wave counter
+	nextWaveTime = gameLocal.time + 8.0f; // Delay before next wave
+}
+
+
+
+void idGameLocal::EnemyDefeated() {
+	//gameLocal.Printf("Checking if all enemies are dead...\n");
+
+	idEntity* ent;
+	int aliveEnemies = 0;
+
+	for (ent = spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next()) {
+		const char* classname = ent->spawnArgs.GetString("classname", "");
+
+		// Debug: Print all entity classnames
+		//gameLocal.Printf("Found entity: %s\n", classname);
+
+		if (idStr::Cmpn(classname, "monster_", 8) == 0) {
+			if (ent->health <= 0) {
+				//gameLocal.Printf("Removing dead enemy: %s\n", classname);
+				ent->PostEventMS(&EV_Remove, 0); // Immediately delete dead enemies
+			}
+			else {
+				aliveEnemies++;
+			}
+		}
+	}
+
+	//gameLocal.Printf("Alive enemies: %d\n", aliveEnemies);
+
+	if (aliveEnemies == 0) {
+		//gameLocal.Printf("Wave complete! Starting next wave...\n");
+		nextWaveTime = gameLocal.time + 5.0f; // 5-second delay before next wave
+	}
+}
+
+
+
+
+
+
 /*
 ===================
 idGameLocal::LoadMap
@@ -1840,7 +2070,9 @@ idGameLocal::MapPopulate
 ===================
 */
 void idGameLocal::MapPopulate( int instance ) {
-
+	// Initialize wave system
+	nextWaveTime = 0;
+	waveCount = 0;
 // RAVEN BEGIN
 // jnewquist: Tag scope and callees to track allocations using "new".
 	MEM_SCOPED_TAG(tag,MA_ENTITY);
@@ -1870,6 +2102,7 @@ void idGameLocal::MapPopulate( int instance ) {
 		assert( instance >= 0 && instance < instances.Num() );
 		instances[ instance ]->Restart();
 	}
+
 // RAVEN END
 
 	ServerSetMinSpawnIndex();
@@ -1887,6 +2120,7 @@ void idGameLocal::MapPopulate( int instance ) {
 	// before the physics are run so entities can bind correctly
 	Printf( "------------ Processing events --------------\n" );
 	idEvent::ServiceEvents();
+
 }
 
 /*
@@ -1978,6 +2212,11 @@ void idGameLocal::InitFromNewMap( const char *mapName, idRenderWorld *renderWorl
 	gamestate = GAMESTATE_ACTIVE;
 
 	Printf( "---------------------------------------------\n" );
+	//MOD
+
+	gameLocal.Printf("RUN\n");
+	//InitWaveSystem();
+
 }
 
 /*
@@ -3471,6 +3710,21 @@ idGameLocal::RunFrame
 	assert( !isClient );
 
 	player = GetLocalPlayer();
+
+	//MOD
+	if (waveCount == 0) {
+		//gameLocal.Printf("Starting first wave!\n");
+		StartWave();
+		waveCount++;
+		nextWaveTime = gameLocal.time + 5.0f;
+	}
+
+	if (nextWaveTime > 0 && gameLocal.time >= nextWaveTime) {
+		//gameLocal.Printf("Starting next wave!\n");
+		StartWave();
+		waveCount++;
+		nextWaveTime = gameLocal.time + 5.0f;
+	}
 
 	if ( !isMultiplayer && g_stopTime.GetBool() ) {
 

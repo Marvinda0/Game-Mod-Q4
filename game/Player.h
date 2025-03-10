@@ -291,8 +291,8 @@ public:
 
 	bool canDash = true; //MOD
 	int lastDashTime = 0; //MOD
-	const int dashCooldown = 3000; //MOD
-	const float dashDistance = 1000.0f; //MOD
+	const int dashCooldown = 1500; //MOD
+	const float dashDistance = 500.0f; //MOD
 
 	bool					godmode;
 	int						godmodeDamage;
@@ -448,6 +448,14 @@ public:
 
 	virtual void			Hide( void );
 	virtual void			Show( void );
+	//MOD
+	void					DisableMistStep();
+	void					Event_DisableMistStep();
+	void					SummonDragon();
+	void					Event_DisableSmokeBomb();
+	void					DisableSmokeBomb();
+	//
+
 
 
 	void					Init( void );
