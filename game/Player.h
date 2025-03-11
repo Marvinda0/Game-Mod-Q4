@@ -292,7 +292,9 @@ public:
 	bool canDash = true; //MOD
 	int lastDashTime = 0; //MOD
 	const int dashCooldown = 1500; //MOD
-	const float dashDistance = 500.0f; //MOD
+	const float dashDistance = 700.0f; //MOD
+	float playerSpeedMultiplier; // Speed increase
+	float playerDamageMultiplier; // Damage increase
 
 	bool					godmode;
 	int						godmodeDamage;
@@ -455,6 +457,10 @@ public:
 	void					SpawnDecoy();
 	void					Event_DisableSmokeBomb();
 	void					DisableSmokeBomb();
+	void					AddExperience(int experience);
+	void					UpgradeStat(const char* stat);
+	void					UpdateHUD();
+	int experiencePoints;
 	//
 
 

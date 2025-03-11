@@ -2625,6 +2625,11 @@ void rvWeapon::LaunchProjectiles ( idDict& dict, const idVec3& muzzleOrigin, con
 	if ( !gameLocal.isMultiplayer ) {
 		aiManager.ReactToPlayerAttack ( owner, muzzleOrigin, muzzleAxis[0] );
 	}
+
+	//MOD
+	float baseDamage = dict.GetFloat("damage", "10"); // Fallback to 10 if not found
+	float modifiedDamage = baseDamage * owner->playerDamageMultiplier;
+	dict.SetFloat("damage", modifiedDamage);
 		
 	ownerBounds = owner->GetPhysics()->GetAbsBounds();
 	spreadRad   = DEG2RAD( spread );
@@ -2753,6 +2758,9 @@ void rvWeapon::Hitscan( const idDict& dict, const idVec3& muzzleOrigin, const id
 	if ( !gameLocal.isMultiplayer ) {
 		aiManager.ReactToPlayerAttack( owner, muzzleOrigin, muzzleAxis[0] );
 	}
+	//MOD	
+	float baseDamage = dict.GetFloat("damage", "10"); // Fallback to 10 if not found
+	float modifiedDamage = baseDamage * owner->playerDamageMultiplier;
 
 	GetGlobalJointTransform( true, flashJointView, fxOrigin, fxAxis, dict.GetVector( "fxOriginOffset" ) );
 
@@ -2820,7 +2828,13 @@ void rvWeapon::Hitscan( const idDict& dict, const idVec3& muzzleOrigin, const id
 		}
 		dir.Normalize();
 
-		gameLocal.HitScan( dict, muzzleOrigin, dir, fxOrigin, owner, false, 1.0f, NULL, areas );
+		//MOD Apply the damage boost 
+		idDict modifiedDict = dict;
+		modifiedDict.SetFloat("damage", modifiedDamage);
+		float testDamage = modifiedDict.GetFloat("damage", "0");
+		//gameLocal.Printf("DEBUG: Final damage in dict: %f\n", testDamage);
+
+		gameLocal.HitScan(modifiedDict, muzzleOrigin, dir, fxOrigin, owner, false, 1.0f, NULL, areas );
 
 		if ( gameLocal.isServer ) {
 			msg.WriteDir( dir, 24 );

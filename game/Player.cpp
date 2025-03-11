@@ -1110,6 +1110,10 @@ idPlayer::idPlayer() {
 	lastHitTime				= 0;
 	lastSavingThrowTime		= 0;
 
+	//MOD
+	experiencePoints = 150; //start with extra point to test upgrades
+	playerSpeedMultiplier = 1.0f;//
+
 	weapon					= NULL;
 
 	hud						= NULL;
@@ -1882,6 +1886,10 @@ void idPlayer::Spawn( void ) {
 			cursor->Activate( true, gameLocal.time );
 		}
 		
+		//MOD
+		hud->SetStateInt("player_xp", experiencePoints);
+		hud->SetStateString("player_speed", va("%.1fx", playerSpeedMultiplier));
+
 		// Load 
 
 		if ( spawnArgs.GetString ( "cinematicHud", "", temp ) ) {
@@ -3414,6 +3422,23 @@ void idPlayer::UpdateHudStats( idUserInterface *_hud ) {
 		_hud->SetStateInt ( "player_armor", inventory.armor );
 		_hud->SetStateFloat	( "player_armorpct", idMath::ClampFloat ( 0.0f, 1.0f, (float)inventory.armor / (float)inventory.maxarmor ) );
 		_hud->HandleNamedEvent ( "updateArmor" );
+	}
+
+	//MOD
+	//XP
+	idStr xpString = va("XP: %d", experiencePoints);
+	idStr currentXP = _hud->State().GetString("player_xp");
+	if (currentXP != xpString) {
+		_hud->SetStateString("player_xp", va("%d", experiencePoints));
+		//_hud->HandleNamedEvent("updateXP");  // Ensure this exists in hud.gui
+	}
+	
+	//SPEED
+	idStr speedString = va("%.1fx", playerSpeedMultiplier);
+	idStr currentSpeedString = _hud->State().GetString("player_speed");
+	if (currentSpeedString != speedString) {
+		_hud->SetStateString("player_speed", speedString);
+		//_hud->HandleNamedEvent("updateSpeed");  // Ensure this exists in hud.gui
 	}
 	
 	// Boss bar
@@ -8526,9 +8551,7 @@ void idPlayer::PerformImpulse( int impulse ) {
 			break;
 		}
 		case IMPULSE_20: {
- 			if ( gameLocal.isClient || entityNumber == gameLocal.localClientNum ) {
- 				gameLocal.mpGame.ToggleTeam( );
-			}
+			UpgradeStat("heal"); //F6 heal MOD
 			break;
 		}
 		case IMPULSE_21: {
@@ -8551,9 +8574,7 @@ void idPlayer::PerformImpulse( int impulse ) {
 			break;
 		}
 		case IMPULSE_22: {
- 			if ( gameLocal.isClient || entityNumber == gameLocal.localClientNum ) {
- 				gameLocal.mpGame.ToggleSpectate( );
-   			}
+			UpgradeStat("speed"); //F7 increase speed MOD
    			break;
    		}
 			//MOD
@@ -8675,6 +8696,16 @@ void idPlayer::DisableSmokeBomb() {
 	gameLocal.Printf("Smokebomb done\n");
 }
 
+//MOD Experience
+void idPlayer::AddExperience(int amount) {
+	experiencePoints += amount;
+	if (hud) {
+		hud->SetStateInt("XPDisplay", experiencePoints);
+	}
+	gameLocal.Printf("Gained %d XP! Total XP: %d\n", amount, experiencePoints);
+}
+
+
 //MOD function to summon dragon
 void idPlayer::SummonDragon() {
 	gameLocal.Printf("Attempting to summon the Dragon (Marine)...\n");
@@ -8774,6 +8805,52 @@ void idPlayer::SpawnDecoy() {
 }
 
 //MOD
+void idPlayer::UpgradeStat(const char* stat) {
+	const int cost = 30; // XP cost per upgrade
+	const int healAmount = 20; // Amount healed per XP spend
+
+	if (experiencePoints < cost) {
+		gameLocal.Printf("Not enough XP! (%d XP needed)\n", cost);
+		return;
+	}
+
+	if (idStr::Icmp(stat, "speed") == 0) {
+		playerSpeedMultiplier += 0.1f; // Increase speed by 10%
+		gameLocal.Printf("Speed upgraded! Multiplier: %f\n", playerSpeedMultiplier);
+		if (hud) {
+			hud->SetStateString("SpeedMultiplierDisplay", va("Speed: %.1fx", playerSpeedMultiplier));
+		}
+	}
+	//else if (idStr::Icmp(stat, "damage") == 0) {
+	//	playerDamageMultiplier += 0.2f; // Increase damage by 20%
+	//	gameLocal.Printf("Damage upgraded! Multiplier: %f\n", playerDamageMultiplier);
+	//}
+	else if (idStr::Icmp(stat, "heal") == 0) {
+		int maxHealth = spawnArgs.GetInt("health", "900"); // Read max health from .def file
+		health += healAmount;
+		if (health > maxHealth) {
+			health = maxHealth; // Prevent overhealing
+		}
+		gameLocal.Printf("Healed %d HP! Current Health: %d\n", healAmount, health);
+	}
+	else {
+		gameLocal.Printf("Invalid upgrade option!\n");
+		return;
+	}
+
+	experiencePoints -= cost;
+	gameLocal.Printf("XP remaining: %d\n", experiencePoints);
+}
+
+//MOD hud for experience and speed
+//void idPlayer::UpdateHUD() {
+	//hud->SetStateInt("player_xp", experiencePoints);
+	//hud->SetStateString("player_speed", va("%.1fx", playerSpeedMultiplier));
+	//gameLocal.Printf("HUD Updated: XP = %d | Speed = %.1fx\n", experiencePoints, playerSpeedMultiplier);
+//}
+
+//MOD END Fucntions Player
+
 
 /*
 ==============
@@ -8892,6 +8969,9 @@ void idPlayer::AdjustSpeed( void ) {
 		speed = pm_walkspeed.GetFloat();
 		bobFrac = 0.0f;
 	}
+	//MOD
+	 // Apply speed multiplier from upgrades
+	speed *= playerSpeedMultiplier;
 
 	speed *= PowerUpModifier(PMOD_SPEED);
 
@@ -9426,7 +9506,10 @@ Called every tic for each player
 */
 void idPlayer::Think( void ) {
 	renderEntity_t *headRenderEnt;
- 
+
+	//MOD Updatate hud fucntions to be calle every frame
+	//UpdateHUD();
+
 	if ( talkingNPC ) {
 		if ( !talkingNPC.IsValid() ) {
 			talkingNPC = NULL;
@@ -9577,6 +9660,7 @@ void idPlayer::Think( void ) {
 		}
 
 		UpdateLocation();
+
 		
 		if ( !fl.hidden ) {
 			UpdateAnimation();

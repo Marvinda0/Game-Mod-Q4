@@ -1532,6 +1532,8 @@ void idAI::AdjustHealthByDamage	( int damage ) {
 		Killed(gameLocal.GetLocalPlayer(), gameLocal.GetLocalPlayer(), damage, vec3_zero, INVALID_JOINT);
 		return;
 	}
+	//MOD Debuggin exp upgrade damage
+	//gameLocal.Printf("DEBUG: Adjusting enemy health by damage: %d\n", damage);
 	idActor::AdjustHealthByDamage ( damage );
 
 	if ( g_perfTest_aiUndying.GetBool() && health <= 0 ) {
@@ -1625,6 +1627,8 @@ void idAI::Killed( idEntity *inflictor, idEntity *attacker, int damage, const id
 	idAngles			ang;
 	const char*			modelDeath;
 	const idKeyValue*	kv;
+
+	idActor::Killed(inflictor, attacker, damage, dir, location);
 	
 	if ( g_debugDamage.GetBool() ) {
 		gameLocal.Printf( "Damage: joint: '%s', zone '%s'\n", animator.GetJointName( ( jointHandle_t )location ), 
@@ -1635,6 +1639,15 @@ void idAI::Killed( idEntity *inflictor, idEntity *attacker, int damage, const id
 		aifl.pain = true;
 		aifl.damage = true;
 		return;
+	}
+
+	//MOD EXP
+	if (health <= 0 && !aifl.dead) {
+		idPlayer* player = gameLocal.GetLocalPlayer();
+		if (player) {
+			player->AddExperience(15); // Gain XP only once
+			//gameLocal.Printf("XP Granted for killing AI: %s\n", GetName()); debug
+		}
 	}
 
 	aifl.dead = true;
