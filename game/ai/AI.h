@@ -737,7 +737,8 @@ protected:
 	*/
 
 public:
-
+	//MOD Backdtab
+	bool					IsPlayerBehind					();
 	// enemy managment
 	bool					SetEnemy						( idEntity *newEnemy );
 	void					ClearEnemy						( bool dead = false );

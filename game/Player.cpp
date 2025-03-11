@@ -8503,9 +8503,7 @@ void idPlayer::PerformImpulse( int impulse ) {
 			break;
 		}
 		case IMPULSE_17: {
- 			if ( gameLocal.isClient || entityNumber == gameLocal.localClientNum ) {
- 				gameLocal.mpGame.ToggleReady( );
-			}
+			SpawnDecoy();
 			break;
 		}
 		case IMPULSE_18: {
@@ -8716,13 +8714,62 @@ void idPlayer::SummonDragon() {
 	gameLocal.SpawnEntityDef(args, &dragon);
 
 	if (dragon) {
-		gameLocal.Printf("Summoned Dragon (Marine) at: %s\n", dragon->GetPhysics()->GetOrigin().ToString());
 
 		// No need to modify AI or damage—handle in the .def file
 		dragon->PostEventSec(&EV_Remove, 3.0f);  // Auto-despawn after 3 sec
 	}
 	else {
 		gameLocal.Printf("Error: Failed to summon the Dragon!\n");
+	}
+}
+
+//MOD stelath mechanic decoy:
+void idPlayer::SpawnDecoy() {
+	gameLocal.Printf("Attempting to spawn a decoy...\n");
+
+	idVec3 playerPos = GetPhysics()->GetOrigin();
+	idVec3 spawnPos;
+	bool foundValidSpawn = false;
+
+	// Try up to 5 times to find a valid spawn position
+	for (int attempt = 0; attempt < 5; attempt++) {
+		spawnPos = playerPos + idVec3(
+			gameLocal.random.RandomFloat() * 200.0f - 100.0f, // Random X (-100 to 100)
+			gameLocal.random.RandomFloat() * 200.0f - 100.0f, // Random Y (-100 to 100)
+			0.0f // Keep at ground level
+		);
+
+		trace_t trace;
+		gameLocal.Translation(trace, spawnPos, spawnPos + idVec3(0, 0, 50), NULL, MASK_SOLID);
+
+		if (trace.fraction == 1.0f) { // No collision = valid position
+			foundValidSpawn = true;
+			break;
+		}
+	}
+
+	if (!foundValidSpawn) {
+		gameLocal.Printf("Warning: No valid spawn point found for the decoy!\n");
+		return;
+	}
+
+	idDict args;
+	args.Set("classname", "char_marine"); // Spawning the marine NPC
+	args.SetVector("origin", spawnPos);
+
+	idEntity* decoy;
+	gameLocal.SpawnEntityDef(args, &decoy);
+
+	if (decoy) {
+
+		// Make sure AI will attack it
+		static_cast<idAI*>(decoy)->SetEnemy(gameLocal.GetLocalPlayer());
+
+		// Auto-despawn after 10 seconds
+		decoy->PostEventSec(&EV_Remove, 10.0f);
+	}
+	else {
+		gameLocal.Printf("Error: Failed to spawn the decoy!\n");
 	}
 }
 

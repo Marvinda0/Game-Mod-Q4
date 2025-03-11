@@ -452,6 +452,7 @@ public:
 	void					DisableMistStep();
 	void					Event_DisableMistStep();
 	void					SummonDragon();
+	void					SpawnDecoy();
 	void					Event_DisableSmokeBomb();
 	void					DisableSmokeBomb();
 	//

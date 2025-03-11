@@ -1523,7 +1523,15 @@ idAI::AdjustHealthByDamage
 void idAI::AdjustHealthByDamage	( int damage ) {
 	if ( aifl.undying ) {
 		return;
-	}	
+	}
+	//Mod
+	 // Check if the player is behind
+	if (IsPlayerBehind()) {
+		gameLocal.Printf("DEBUG: Backstab! Enemy instantly killed.\n");
+		health = 0;  // Set health to zero for instant kill
+		Killed(gameLocal.GetLocalPlayer(), gameLocal.GetLocalPlayer(), damage, vec3_zero, INVALID_JOINT);
+		return;
+	}
 	idActor::AdjustHealthByDamage ( damage );
 
 	if ( g_perfTest_aiUndying.GetBool() && health <= 0 ) {
@@ -2027,7 +2035,15 @@ void idAI::UpdateEnemy ( void ) {
 		StopMove(MOVE_STATUS_DONE); // Stop chasing
 		return;
 	}
-
+	//MOD Stealth decoy 
+	idEntity* ent;
+	for (ent = gameLocal.spawnedEntities.Next(); ent != NULL; ent = ent->spawnNode.Next()) {
+		if (ent->IsType(idAI::Type) && ent->spawnArgs.GetString("classname") == "monster_marine") {
+			enemy.ent = ent; // Set the decoy as the target
+			gameLocal.Printf("DEBUG: AI is now targeting the decoy!\n");
+			return;
+		}
+	}
 	// Rest to not being in fov
 	enemy.fl.inFov = false;
 
@@ -2147,14 +2163,34 @@ void idAI::UpdateEnemyVisibility ( void ) {
 		enemy.fl.visible = false;
 		return;
 	}
-
-
-
 	// No enemy so nothing to see
 	if ( !enemy.ent ) {
 		return;
 	}
+	// MOD Stealth crouching
+		idPlayer * player = gameLocal.GetLocalPlayer();
+	if (!player) {
+		return;
+	}
+	float detectRange = combat.visRange;  // Vision range
+	float hearingRange = combat.earRange; // Hearing range
 
+	if (player->IsCrouching()) {
+		detectRange *= 0.5f; // Reduce vision by 50%
+		hearingRange *= 0.5f; // Reduce hearing by 50%
+		gameLocal.Printf("DEBUG: Player is crouching, reducing AI vision & hearing range!\n");
+	}
+
+	if (DistanceTo(enemy.ent) > detectRange) {
+		enemy.fl.visible = false;
+		return;
+	}
+
+	// Apply hearing limit
+	float dist = (enemy.ent->GetPhysics()->GetOrigin() - physicsObj.GetOrigin()).LengthSqr();
+	if (dist > Square(hearingRange)) {
+		return; // AI doesn't hear the player if they are too far
+	}
 	// Update enemy visibility flag
 	enemy.fl.visible = CanSeeFrom ( GetEyePosition ( ), enemy.ent, false );
 
@@ -2173,6 +2209,23 @@ void idAI::UpdateEnemyVisibility ( void ) {
 	
 	// Update our known locations of the enemy since we just saw him
 	UpdateEnemyPosition ( );
+}
+
+//MOD backstab kill
+bool idAI::IsPlayerBehind() {
+	idPlayer* player = gameLocal.GetLocalPlayer();
+	if (!player) {
+		return false;
+	}
+
+	// Get direction vectors
+	idVec3 enemyForward = viewAxis[0]; // Enemy’s forward direction
+	idVec3 toPlayer = (player->GetPhysics()->GetOrigin() - GetPhysics()->GetOrigin());
+	toPlayer.Normalize();
+
+	// Dot product to check if player is behind
+	float dot = enemyForward * toPlayer;
+	return dot < -0.7f; // -1 = directly behind, 0 = perpendicular
 }
 
 /*
